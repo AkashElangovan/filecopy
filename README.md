@@ -1,6 +1,6 @@
 # filecopy
 
-copies file from pendrive in background
+Copies file from pendrive in background
 # Key Enhancements
 
 - **User Input**: Users can now input the file names, destination, and scanning interval.
