@@ -1,4 +1,4 @@
-# filecopy
+# Filecopy
 
 Copies file from pendrive in background
 # Key Enhancements
